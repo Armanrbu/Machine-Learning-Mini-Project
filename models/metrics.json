@@ -1,0 +1,84 @@
+{
+  "accuracy": 98.41,
+  "precision": 98.51,
+  "recall": 98.41,
+  "f1": 98.39,
+  "cm": [
+    [
+      244,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      158,
+      1,
+      0
+    ],
+    [
+      0,
+      0,
+      312,
+      0
+    ],
+    [
+      0,
+      12,
+      0,
+      91
+    ]
+  ],
+  "cm_labels": [
+    "Excess Rainfall",
+    "Moderate Drought",
+    "Normal",
+    "Severe Drought"
+  ],
+  "features": [
+    "JAN",
+    "FEB",
+    "MAR",
+    "APR",
+    "MAY",
+    "JUN",
+    "JUL",
+    "AUG",
+    "SEP",
+    "OCT",
+    "NOV",
+    "DEC",
+    "MONSOON",
+    "NON_MONSOON",
+    "MONSOON_DEVIATION"
+  ],
+  "importances": {
+    "JAN": 0.0081,
+    "FEB": 0.0103,
+    "MAR": 0.0121,
+    "APR": 0.0115,
+    "MAY": 0.0142,
+    "JUN": 0.0167,
+    "JUL": 0.0269,
+    "AUG": 0.0268,
+    "SEP": 0.0298,
+    "OCT": 0.0127,
+    "NOV": 0.0091,
+    "DEC": 0.0088,
+    "MONSOON": 0.0654,
+    "NON_MONSOON": 0.014,
+    "MONSOON_DEVIATION": 0.7337
+  },
+  "model_name": "Random Forest (n=100, depth=8)",
+  "dataset_info": {
+    "source": "Rainfall in India 1901-2015, IMD Meteorological Subdivisions",
+    "rows": 4090,
+    "features": 15,
+    "classes": [
+      "Excess Rainfall",
+      "Moderate Drought",
+      "Normal",
+      "Severe Drought"
+    ]
+  }
+}

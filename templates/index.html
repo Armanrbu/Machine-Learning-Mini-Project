@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>JalDrushti — Drought Severity Classifier</title>
+  <meta name="description" content="AI-powered drought severity prediction for India using real IMD rainfall data and Random Forest classifier."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div>
+      <div class="logo">💧 JalDrushti</div>
+      <p class="tagline">Drought Severity Classifier · IMD Rainfall Data 1901–2015</p>
+    </div>
+    <div class="stats-row">
+      <div class="stat"><span class="stat-num">4116</span><span class="stat-label">Records</span></div>
+      <div class="stat"><span class="stat-num">36</span><span class="stat-label">Subdivisions</span></div>
+      <div class="stat"><span class="stat-num">{{ metrics.accuracy }}%</span><span class="stat-label">Accuracy</span></div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- PREDICTION PANEL -->
+  <section class="card" id="predict-section">
+    <h2>📡 Predict Drought Severity</h2>
+    <p class="sub">Enter monthly rainfall (mm) for a region. Monsoon months (Jun–Sep) are most critical.</p>
+
+    <div class="month-grid">
+      {% set months = [("JAN","January"),("FEB","February"),("MAR","March"),("APR","April"),
+                       ("MAY","May"),("JUN","June"),("JUL","July"),("AUG","August"),
+                       ("SEP","September"),("OCT","October"),("NOV","November"),("DEC","December")] %}
+      {% for code, name in months %}
+      <div class="month-field {% if code in ['JUN','JUL','AUG','SEP'] %}monsoon{% endif %}">
+        <label for="{{ code }}">{{ name }}</label>
+        <input type="number" id="{{ code }}" placeholder="mm" min="0" max="2000"
+               value="{{ {'JAN':5,'FEB':8,'MAR':12,'APR':18,'MAY':25,'JUN':120,'JUL':180,'AUG':160,'SEP':100,'OCT':30,'NOV':12,'DEC':6}[code] }}"/>
+        {% if code in ['JUN','JUL','AUG','SEP'] %}
+        <span class="monsoon-tag">Monsoon</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <button id="predictBtn" onclick="predict()">⚡ Predict Drought Severity</button>
+
+    <div id="result" class="result hidden">
+      <div class="result-left">
+        <div class="result-icon" id="r-icon"></div>
+        <div>
+          <div class="result-label" id="r-label"></div>
+          <div class="result-meta" id="r-meta"></div>
+          <div class="result-action" id="r-action"></div>
+        </div>
+      </div>
+      <div class="prob-bars" id="prob-bars"></div>
+    </div>
+  </section>
+
+  <!-- MODEL INFO -->
+  <section class="card" id="metrics-section">
+    <h2>🌲 Model Performance — {{ metrics.model_name }}</h2>
+    <p class="sub">Trained on: <em>{{ metrics.dataset_info.source }}</em></p>
+
+    <div class="metrics-grid">
+      <div class="metric-box">
+        <div class="metric-val">{{ metrics.accuracy }}%</div>
+        <div class="metric-lbl">Accuracy</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-val">{{ metrics.precision }}%</div>
+        <div class="metric-lbl">Precision</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-val">{{ metrics.recall }}%</div>
+        <div class="metric-lbl">Recall</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-val">{{ metrics.f1 }}%</div>
+        <div class="metric-lbl">F1-Score</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURE IMPORTANCE -->
+  <section class="card" id="importance-section">
+    <h2>📊 Feature Importance</h2>
+    <p class="sub">Which rainfall months drive the prediction most</p>
+    <div class="imp-list">
+      {% set sorted_imp = metrics.importances.items() | sort(attribute='1', reverse=True) %}
+      {% for feat, imp in sorted_imp %}
+      <div class="imp-row">
+        <span class="imp-label">{{ feat }}</span>
+        <div class="imp-bar-wrap">
+          <div class="imp-bar" style="width: {{ (imp * 100 / 0.35 * 100)|round|int }}%"></div>
+        </div>
+        <span class="imp-val">{{ "%.1f"|format(imp * 100) }}%</span>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- CONFUSION MATRIX -->
+  <section class="card" id="cm-section">
+    <h2>🔢 Confusion Matrix</h2>
+    <p class="sub">Predicted vs Actual class labels on test set</p>
+    <div class="cm-wrap">
+      <table class="cm">
+        <thead>
+          <tr>
+            <th>Actual \ Predicted</th>
+            {% for lbl in metrics.cm_labels %}<th>{{ lbl }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for i in range(metrics.cm | length) %}
+          <tr>
+            <th>{{ metrics.cm_labels[i] }}</th>
+            {% for j in range(metrics.cm[i] | length) %}
+            <td class="{{ 'cm-diag' if i==j else 'cm-off' }}">{{ metrics.cm[i][j] }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>JalDrushti · Random Forest Classifier · Real IMD Rainfall Data · Vidarbha Water Governance Initiative</p>
+</footer>
+
+<script>
+async function predict() {
+  const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+  const body = {};
+  months.forEach(m => { body[m] = parseFloat(document.getElementById(m).value) || 0; });
+
+  const btn = document.getElementById("predictBtn");
+  btn.textContent = "Predicting...";
+  btn.disabled = true;
+
+  const res  = await fetch("/predict", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body)
+  });
+  const d = await res.json();
+
+  const el = document.getElementById("result");
+  el.classList.remove("hidden");
+  el.style.borderColor   = d.color;
+  el.style.background    = d.bg;
+  document.getElementById("r-icon").textContent   = d.icon;
+  document.getElementById("r-label").textContent  = d.severity;
+  document.getElementById("r-label").style.color  = d.color;
+  document.getElementById("r-meta").textContent   = `Monsoon: ${d.monsoon_mm} mm | Deviation: ${d.deviation > 0 ? "+" : ""}${d.deviation}%`;
+  document.getElementById("r-action").textContent = d.action;
+
+  // Probability bars
+  const pb = document.getElementById("prob-bars");
+  pb.innerHTML = "<p class='prob-title'>Class Probabilities</p>" +
+    d.probabilities.map(p => `
+      <div class="prob-row">
+        <span class="prob-label">${p.label}</span>
+        <div class="prob-bar-wrap">
+          <div class="prob-bar" style="width:${p.prob}%; background:${p.label===d.severity ? d.color : '#30363d'}"></div>
+        </div>
+        <span class="prob-num">${p.prob}%</span>
+      </div>`).join("");
+
+  btn.textContent = "⚡ Predict Drought Severity";
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>
